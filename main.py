@@ -22,88 +22,148 @@ from umqtt.robust import MQTTClient
 # Pin data: Is pin numbered 33 in the board. the eleventh pin from top right
 
 
-## General setup
-# WiFi connection information
-WIFI_SSID = 'Fibertel WiFi931 2.4GHz'
-WIFI_PASSWORD = '0044384846'
-
-# turn off the WiFi Access Point, just in case
-ap_if = network.WLAN(network.AP_IF)
-ap_if.active(False)
-
-# connect the device to the WiFi network
-wifi = network.WLAN(network.STA_IF)
-wifi.active(True)
-wifi.connect(WIFI_SSID, WIFI_PASSWORD)
-
-# wait until the device is connected to the WiFi network
-MAX_ATTEMPTS = 20
-attempt_count = 0
-while not wifi.isconnected() and attempt_count < MAX_ATTEMPTS:
-    attempt_count += 1
-    time.sleep(1)
-
-if attempt_count == MAX_ATTEMPTS:
-    print('could not connect to the WiFi network.')
-    sys.exit()
-
+## Setup the display
 # Reset the pins
 # Not sure
 rst = Pin(16, Pin.OUT)
 rst.value(1)
 
+def write_display(text, line=1, clean=True):
+    """
+    Write in the oled dispaly
+    """
+    if clean:
+        oled.fill(0)
+    # Separation from left side, 5 pixels
+    x = 5
+    y = (line - 1) * 10
+    oled.text(text, x, y)
+    oled.show()
 
-
-
-# create a random MQTT clientID
-random_num = int.from_bytes(os.urandom(3), 'little')
-mqtt_client_id = bytes('client_'+str(random_num), 'utf-8')
-
-# connect to Adafruit IO MQTT broker using unsecure TCP (port 1883)
-# To use a secure connection (encrypted) with TLS:
-#   set MQTTClient initializer parameter to "ssl=True"
-#   Caveat: a secure connection uses about 9k bytes of the heap
-#         (about 1/4 of the micropython heap on the ESP8266 platform)
-ADAFRUIT_IO_URL = b'io.adafruit.com'
-ADAFRUIT_USERNAME = b'eldraco'
-ADAFRUIT_IO_KEY = b'aio_tyoZ74JecmBOiwucWCBaclFDVzip'
-ADAFRUIT_IO_FEEDNAME = b'Sensor1-Hum'
-
-client = MQTTClient(client_id=mqtt_client_id,
-                    server=ADAFRUIT_IO_URL,
-                    user=ADAFRUIT_USERNAME,
-                    password=ADAFRUIT_IO_KEY,
-                    ssl=False)
-try:
-    client.connect()
-except Exception as e:
-    print('could not connect to MQTT server {}{}'.format(type(e).__name__, e))
-    sys.exit()
-# Publish mqtt data
-mqtt_feedname = bytes('{:s}/feeds/{:s}'.format(ADAFRUIT_USERNAME, ADAFRUIT_IO_FEEDNAME), 'utf-8')
-PUBLISH_PERIOD_IN_SEC = 5
-
-
-
-# Pin for oled
+# Setup Pin for oled
 scl = Pin(15, Pin.OUT, Pin.PULL_UP)
 sda = Pin(4, Pin.OUT, Pin.PULL_UP)
 i2c = I2C(scl=scl, sda=sda, freq=450000)
 oled = ssd1306.SSD1306_I2C(128, 64, i2c, addr=0x3c)
 
-# The oled first test
-oled.fill(0)
-oled.text('Estenopeica', 20, 5)
-oled.text('Abuelo 2.0', 20, 20)
-oled.show()
 
-# Blink led to show that is working
-led = Pin(25, Pin.OUT)
-for i in range(2):
-    led.on()
-    sleep(500)
-    led.off()
-    sleep(500)
+
+def setup_wifi():
+    """
+    Setup the wifi
+    """
+    write_display('Setting up wifi')
+    # Setup the WiFi connection information
+    WIFI_SSID = 'Fibertel WiFi931 2.4GHz'
+    WIFI_PASSWORD = '0044384846'
+
+    # turn off the WiFi Access Point, just in case
+    ap_if = network.WLAN(network.AP_IF)
+    ap_if.active(False)
+
+    write_display('Connecting with', line=2, clean=False)
+    write_display(WIFI_SSID, line=3, clean=False)
+
+    # connect the device to the WiFi network
+    wifi = network.WLAN(network.STA_IF)
+    wifi.active(True)
+    wifi.connect(WIFI_SSID, WIFI_PASSWORD)
+
+    # wait until the device is connected to the WiFi network
+    MAX_ATTEMPTS = 20
+    attempt_count = 0
+    while not wifi.isconnected() and attempt_count < MAX_ATTEMPTS:
+        attempt_count += 1
+        time.sleep(1)
+
+    if attempt_count == MAX_ATTEMPTS:
+        print('Could not connect to the WiFi network.')
+        write_display('Could not connect', line=4, clean=False)
+        write_display('to Wifi', line=5, clean=False)
+        sys.exit()
+
+    write_display('Connected.', line=4, clean=False)
+
+
+def setup_mqtt():
+    """
+    Setup mqtt
+    """
+    # Create a random MQTT clientID
+    random_num = int.from_bytes(os.urandom(3), 'little')
+    mqtt_client_id = bytes('client_'+str(random_num), 'utf-8')
+
+    # connect to Adafruit IO MQTT broker using unsecure TCP (port 1883)
+    # To use a secure connection (encrypted) with TLS:
+    #   set MQTTClient initializer parameter to "ssl=True"
+    #   Caveat: a secure connection uses about 9k bytes of the heap
+    #         (about 1/4 of the micropython heap on the ESP8266 platform)
+    ADAFRUIT_IO_URL = b'io.adafruit.com'
+    ADAFRUIT_USERNAME = b'eldraco'
+    ADAFRUIT_IO_KEY = b'aio_tyoZ74JecmBOiwucWCBaclFDVzip'
+    ADAFRUIT_IO_FEEDNAME = b'Sensor1-Hum'
+
+    client = MQTTClient(client_id=mqtt_client_id,
+                        server=ADAFRUIT_IO_URL,
+                        user=ADAFRUIT_USERNAME,
+                        password=ADAFRUIT_IO_KEY,
+                        ssl=False)
+    try:
+        client.connect()
+    except Exception as e:
+        print('could not connect to MQTT server {}{}'.format(type(e).__name__, e))
+        sys.exit()
+    # Publish mqtt data
+    mqtt_feedname = bytes('{:s}/feeds/{:s}'.format(ADAFRUIT_USERNAME, ADAFRUIT_IO_FEEDNAME), 'utf-8')
+    PUBLISH_PERIOD_IN_SEC = 5
+
+
+def setup_led():
+    """
+    Setup led
+    """
+    write_display('Setting up')
+    write_display('led', line=2, clean=False)
+    # Blink led to show that is working
+    led = Pin(25, Pin.OUT)
+    for i in range(2):
+        led.on()
+        sleep(500)
+        led.off()
+        sleep(500)
+
+def setup_humidity_sensor():
+    """
+    Setup humidity sensor
+    """
+    write_display('Setting up')
+    write_display('humidity sensor', line=2, clean=False)
+    # Pin for Analog value read of the humid sensor
+    # Pin 33 in the heltec is the input
+    hum = ADC(Pin(33))
+    # Full range: 3.3v
+    hum.atten(ADC.ATTN_11DB)
+    return hum
+
+
+
+# Main code before the loop
+# The oled first
+write_display('Estenopeica')
+write_display('Abuelo 2.2', line=2, clean=False)
+time.sleep(1)
+
+# Set up the wifi
+setup_wifi()
+time.sleep(1)
+
+# Setup humidity sensor
+hum = setup_humidity_sensor()
+time.sleep(1)
+
+# Setup led
+#setup_led()
+#time.sleep(1)
 
 """
 # Test the servo
@@ -117,24 +177,19 @@ servo.duty(100)
 time.sleep(0.1)
 servo.duty(110)
 """
-
-# Pin for Analog value read of the humid sensor
-# Pin 33 in the heltec is the input
-hum = ADC(Pin(33))
-# Full range: 3.3v
-hum.atten(ADC.ATTN_11DB)
+write_display('Going to main loop')
+time.sleep(1)
 
 # Main loop
 while True:
     try:
+        write_display('Reading Humidity')
         hum_value = hum.read()
         client.publish(mqtt_feedname,
                        bytes(str(hum_value), 'utf-8'),
                        qos=0)
-        oled.fill(0)
-        oled.text('Hum: ', 10, 30)
-        oled.text(str(hum_value), 40, 30)
-        oled.show()
+        write_display('Hum ', line=2)
+        write_display('     '+ str(hum_value), line=2, clean=False)
         time.sleep(PUBLISH_PERIOD_IN_SEC)
     except KeyboardInterrupt:
         print('Ctrl-C pressed...exiting')
