@@ -89,6 +89,7 @@ def setup_mqtt():
     """
     Setup mqtt
     """
+    write_display('Setting mqtt')
     # Create a random MQTT clientID
     random_num = int.from_bytes(os.urandom(3), 'little')
     mqtt_client_id = bytes('client_'+str(random_num), 'utf-8')
@@ -115,7 +116,7 @@ def setup_mqtt():
         sys.exit()
     # Publish mqtt data
     mqtt_feedname = bytes('{:s}/feeds/{:s}'.format(ADAFRUIT_USERNAME, ADAFRUIT_IO_FEEDNAME), 'utf-8')
-    PUBLISH_PERIOD_IN_SEC = 5
+    return (client, mqtt_feedname)
 
 
 def setup_led():
@@ -145,6 +146,36 @@ def setup_humidity_sensor():
     hum.atten(ADC.ATTN_11DB)
     return hum
 
+def setup_servo():
+    """
+    Setup the servo
+    """
+    write_display('Setting up')
+    write_display('Servo', line=2, clean=False)
+    servopin = Pin(17)
+    servo = PWM(servopin, freq=50)
+    # Close it
+    servo.duty(35)
+    # First border is duty=10
+    # Center is duty=35 this is closing the hole
+    # Center is duty=55 this is opening the hole
+    # Last border is duty=70
+    return servo
+
+def pinhole(servo, action):
+    """
+    Open and close the pinhole
+    """
+    if action == 'open':
+        write_display('Opening')
+        write_display('Pinhole', line=2, clean=False)
+        servo.duty(55)
+        write_display('Open', line=3, clean=False)
+    elif action == 'close':
+        write_display('Opening')
+        write_display('Pinhole', line=2, clean=False)
+        servo.duty(35)
+        write_display('Open', line=3, clean=False)
 
 
 # Main code before the loop
@@ -161,23 +192,26 @@ time.sleep(1)
 hum = setup_humidity_sensor()
 time.sleep(1)
 
+# Setup mqtt
+client, mqtt_feedname = setup_mqtt()
+PUBLISH_PERIOD_IN_SEC = 5
+time.sleep(1)
+
 # Setup led
 #setup_led()
 #time.sleep(1)
 
-"""
-# Test the servo
-servopin = Pin(15)
-servo = PWM(servopin, freq=50)
-servo.duty(40)
-time.sleep(0.1)
-servo.duty(50)
-time.sleep(0.1)
-servo.duty(100)
-time.sleep(0.1)
-servo.duty(110)
-"""
-write_display('Going to main loop')
+# Setup the servo
+servo = setup_servo()
+time.sleep(1)
+
+# Test servo
+pinhole(servo, 'open')
+time.sleep(10)
+pinhole(servo, 'close')
+
+
+write_display('Going to loop')
 time.sleep(1)
 
 # Main loop
@@ -185,11 +219,11 @@ while True:
     try:
         write_display('Reading Humidity')
         hum_value = hum.read()
+        write_display('Hum ', line=2)
+        write_display('     ' + str(hum_value), line=2, clean=False)
         client.publish(mqtt_feedname,
                        bytes(str(hum_value), 'utf-8'),
                        qos=0)
-        write_display('Hum ', line=2)
-        write_display('     '+ str(hum_value), line=2, clean=False)
         time.sleep(PUBLISH_PERIOD_IN_SEC)
     except KeyboardInterrupt:
         print('Ctrl-C pressed...exiting')
