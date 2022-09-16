@@ -104,7 +104,7 @@ def setup_mqtt():
     #         (about 1/4 of the micropython heap on the ESP8266 platform)
     ADAFRUIT_IO_URL = b'io.adafruit.com'
     ADAFRUIT_USERNAME = b'eldraco'
-    ADAFRUIT_IO_KEY = b'aio_tyoZ74JecmBOiwucWCBaclFDVzip'
+    ADAFRUIT_IO_KEY = b''
     ADAFRUIT_IO_FEEDNAME1 = b'Sensor1-Hum'
     ADAFRUIT_IO_FEEDNAME2 = b'Pinhole'
     ADAFRUIT_IO_FEEDNAME3 = b'WaitingTime'
@@ -117,6 +117,8 @@ def setup_mqtt():
     try:
         client.connect()
     except Exception as e:
+        write_display('Cant connect')
+        write_display('to mqtt', line=2, clean=False)
         print('could not connect to MQTT server {}{}'.format(type(e).__name__, e))
         sys.exit()
     # Publish mqtt data
