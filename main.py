@@ -358,7 +358,6 @@ while True:
             client.publish(mqtt_feedname_waiting, bytes(str(waiting_time), 'utf-8'), qos=0)
             # This is the most important sleep. We should try to wake up at 12 next day
 
-        write_display('Sleeping...')
         time.sleep(waiting_time)
     except KeyboardInterrupt:
         print('Ctrl-C pressed...exiting')
