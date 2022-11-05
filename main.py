@@ -97,6 +97,10 @@ def setup_mqtt():
     random_num = int.from_bytes(os.urandom(3), 'little')
     mqtt_client_id = bytes('client_'+str(random_num), 'utf-8')
 
+    # Read credentials from file
+    cred_f = open('adafruit-credentials.txt')
+    credentials = cred_f.readline().strip()
+
     # connect to Adafruit IO MQTT broker using unsecure TCP (port 1883)
     # To use a secure connection (encrypted) with TLS:
     #   set MQTTClient initializer parameter to "ssl=True"
@@ -104,7 +108,7 @@ def setup_mqtt():
     #         (about 1/4 of the micropython heap on the ESP8266 platform)
     ADAFRUIT_IO_URL = b'io.adafruit.com'
     ADAFRUIT_USERNAME = b'eldraco'
-    ADAFRUIT_IO_KEY = b''
+    ADAFRUIT_IO_KEY = credentials.encode()
     ADAFRUIT_IO_FEEDNAME1 = b'Sensor1-Hum'
     ADAFRUIT_IO_FEEDNAME2 = b'Pinhole'
     ADAFRUIT_IO_FEEDNAME3 = b'WaitingTime'
