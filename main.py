@@ -22,6 +22,15 @@ import ntptime
 # Pin 5v: Is the second pin from the top right. The while cable WITH ribon
 # Pin data: Is pin numbered 33 in the board. the eleventh pin from top right
 
+#
+# Times configuration
+#
+# Day of opening for picture. 6 for sunday, 5 for saturday, 4 frideay, 3 thursday, 2 wednesday, 1 tuesday, 0 monday
+day_of_opening = 6
+# Hour of opening (24hs)
+hour_of_opening = 21
+# Set pinhole open time. 60 seconds = 1 minute
+PINHOLE_OPEN_TIME = 60
 
 # ---
 ## Setup the display
@@ -35,8 +44,6 @@ sda = Pin(4, Pin.OUT, Pin.PULL_UP)
 i2c = I2C(scl=scl, sda=sda, freq=450000)
 oled = ssd1306.SSD1306_I2C(128, 64, i2c, addr=0x3c)
 
-# Set pinhole open time. 60 seconds = 1 minute
-PINHOLE_OPEN_TIME = 60
 # ---
 
 def write_display(text, line=1, clean=True):
@@ -131,20 +138,6 @@ def setup_mqtt():
     mqtt_feedname_waiting = bytes('{:s}/feeds/{:s}'.format(ADAFRUIT_USERNAME, ADAFRUIT_IO_FEEDNAME3), 'utf-8')
     return (client, mqtt_feedname_hum, mqtt_feedname_pinhole, mqtt_feedname_waiting)
 
-def setup_led():
-    """
-    Setup led
-    """
-    write_display('Setting up')
-    write_display('led', line=2, clean=False)
-    # Blink led to show that is working
-    led = Pin(25, Pin.OUT)
-    for i in range(2):
-        led.on()
-        sleep(500)
-        led.off()
-        sleep(500)
-
 def setup_humidity_sensor():
     """
     Setup humidity sensor
@@ -167,7 +160,7 @@ def setup_servo():
     servopin = Pin(17)
     servo = PWM(servopin, freq=50)
     # Close it
-    servo.duty(35)
+    servo.duty(45)
     # First border is duty=10
     # Center is duty=35 this is closing the hole
     # Center is duty=55 this is opening the hole
@@ -181,12 +174,12 @@ def pinhole(servo, action):
     if action == 'open':
         write_display('Opening')
         write_display('Pinhole', line=2, clean=False)
-        servo.duty(55)
+        servo.duty(65)
         write_display('Open', line=3, clean=False)
     elif action == 'close':
         write_display('Opening')
         write_display('Pinhole', line=2, clean=False)
-        servo.duty(35)
+        servo.duty(45)
         write_display('Open', line=3, clean=False)
 
 def take_pic(servo):
@@ -219,28 +212,27 @@ def take_pic(servo):
 
 def get_next_opening_time(actual_time_seconds):
     """
-    Given a certain time, get how much to wait until next sunday at noon 12pm
+    Given a certain time, get how much to wait until next opening dy at opening time
     """
+
     actual_time = time.localtime(actual_time_seconds)
-
     # Get current day of week
-    actual_time_weekday = actual_time[6] 
-    # Get current hour 
+    actual_time_weekday = actual_time[6]
+    # Get current hour. 0 should be the first hour and 23 the last one
     actual_time_hour = actual_time[3] 
-
-    # Hour of opening, 12 at noon
-    hour_of_oppening = 12
-
-    # Find end of current day
-    # 24 - 22 = 2
-    end_current_day = 24 - actual_time_hour
     
-    # Find how far away is next friday. Friday is 6 in weekday numbers (Sunday = 0)
-    # You decrease 1 day more because we compute the hours of the day you are separatedly
-    #  On Sunday 6 - 7 = -1
-    #  On Saturday 6 - 6 = 0
-    #  On Friday 6 - 5 = 1
-    days_diff = 6 - actual_time_weekday - 1 
+    # Find how far away is next Sunday. Sunday is 6 in weekday numbers (Monday = 0)
+    # You decrease 1 day more because we separatedly compute the hours of the day you are
+    # Examples
+    #  Open On Saturday, today is Friday
+    ## 5 - 4 = 1
+    #  Open On Sunday, today is Sunday
+    ## 6 - 6 = 0
+    #  Open On Sunday, today is Saturday
+    ## 6 - 5 = 1
+    #  Open on Sunday, today is monday
+    ## 6 - 0 = 6
+    days_diff = day_of_opening - actual_time_weekday
 
     # Calculation
     # Sunday 15hs = diff = 6-6-1=-1, end current day = 9
@@ -250,27 +242,38 @@ def get_next_opening_time(actual_time_seconds):
 
     # if days_diff is <= 0, total time is 12hs - current hour
     # if days_diff is > 0, total time is + 12hs - current hour
-    if days_diff == -1:
-        # Sunday
-        # Is pre oppening time?
-        if actual_time_hour <= hour_of_oppening:
-            total_hours = hour_of_oppening - actual_time_hour
-        # Is post oppening time on sunday?
-        # Wait 7 days + the rest of sunday
-        total_hours = (7 * 24) + (24 - actual_time_hour)
-    elif days_diff >= 0:
-        total_hours = (days_diff * 24) + end_current_day + hour_of_oppening
+    if days_diff == 0:
+        # Today is opening day!
+        # Is it pre-opening time?
+        if actual_time_hour <= hour_of_opening:
+            # total_hours can be 0 if we are here on the opening hour
+            total_hours = hour_of_opening - actual_time_hour
+        else:
+            # Is it post-opening time on opening day?
+            # Wait until opening day and opening hour
+            # Substract the amount of hours that passed already in opening day
+            total_hours = (7 * 24) - actual_time_hour + hour_of_opening
+    elif days_diff > 0:
+        # We are in a day that is not opening day
+        # Wait until in opening day - 1 day so we have 24hs at least of checking every hour
+        total_hours = (days_diff * 24) - actual_time_hour + hour_of_opening
 
     # Convert total_hours in correct time in seconds 
     total_seconds = total_hours * 60 * 60
     total_time = time.localtime(actual_time_seconds + total_seconds)
 
+    #write_display('Current Time')
+    #write_display('Day ' + str(actual_time_weekday), line=2, clean=False)
+    #write_display('Hour ' + str(actual_time_hour), line=3, clean=False)
+    #write_display('Diff ' + str(days_diff), line=4, clean=False)
+    #write_display('Wait ' + str(total_time), line=5, clean=False)
+    #time.sleep(1)
     return total_time
 
 # Main code before the loop
 # The oled first
 write_display('Estenopeica')
-write_display('Abuelo 2.2', line=2, clean=False)
+write_display('Abuelo 2.3', line=2, clean=False)
 time.sleep(1)
 
 # Set up the wifi
@@ -291,10 +294,6 @@ time.sleep(1)
 client, mqtt_feedname_hum, mqtt_feedname_pinhole, mqtt_feedname_waiting = setup_mqtt()
 PUBLISH_PERIOD_IN_SEC = 60
 time.sleep(1)
-
-# Setup led
-#setup_led()
-#time.sleep(1)
 
 # Setup the servo
 servo = setup_servo()
@@ -326,7 +325,7 @@ while True:
         actual_time_weekday = actual_time[6] 
         # Get current hour 
         actual_time_hour = actual_time[3] 
-        # Get when it is going to be the next picture time. Next Sunday 12:00pm
+        # Get when it is going to be the next picture time. 
         picture_time = get_next_opening_time(actual_time_seconds)
         write_display('Wait for pic')
         write_display(str(picture_time), line=2, clean=False)
@@ -335,33 +334,36 @@ while True:
         picture_time_weekday = picture_time[6] 
         # Get current hour 
         picture_time_hour = picture_time[3] 
+        time.sleep(5)
+
+        #
+        # Decide if to take pic or not!
+        #
 
         # If it is the day and hour of picture. Hour is without minutes.
         if actual_time_weekday == picture_time_weekday and  actual_time_hour == picture_time_hour:
             write_display('Take Pic!')
             # Take pic
             take_pic(servo)
-            # If take pics fails for some reason, we will wait until next day
-
-        # If it is sunday and before picture time
+        # If it is opening day and before picture time
         if actual_time_weekday == picture_time_weekday and actual_time_hour < picture_time_hour:
             # sleep every 1 hour
             waiting_time = 3600
-            write_display('Waiting one')
-            write_display('1 hour', line=2, clean=False)
+            write_display('Wait ~1 hour', line=1, clean=True)
             client.publish(mqtt_feedname_waiting, bytes(str(waiting_time), 'utf-8'), qos=0)
-        # If it is not sunday or it is sunday after 12hs and at 12hs
+        # If it is not opening day, or it is opening day but after openinig time, or on opening time
         elif (actual_time_weekday != picture_time_weekday) or (actual_time_weekday == picture_time_weekday and actual_time_hour >= picture_time_hour):
             # Sleep for 1 day minus the time we are already away from picture time
             # This is important not to add 1 minute delays during the year
             after_pic_actual_time_seconds = time.time() + UTC_OFFSET
             diff_since_pic = after_pic_actual_time_seconds - actual_time_seconds
             waiting_time = 86400 - diff_since_pic
-            write_display('Waiting one')
-            write_display('1 dayish', line=2, clean=False)
+            write_display('Wait ~1 day', line=1, clean=True)
+            write_display(str(waiting_time) + ' s', line=2, clean=False)
             client.publish(mqtt_feedname_waiting, bytes(str(waiting_time), 'utf-8'), qos=0)
             # This is the most important sleep. We should try to wake up at 12 next day
 
+        write_display('Waiting ' + str(waiting_time), line=3, clean=False)
         time.sleep(waiting_time)
     except KeyboardInterrupt:
         print('Ctrl-C pressed...exiting')
