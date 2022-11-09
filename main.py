@@ -25,10 +25,10 @@ import ntptime
 #
 # Times configuration
 #
-# Day of opening for picture. 6 for sunday, 5 for saturday, 4 frideay, 3 thursday, 2 wednesday, 1 tuesday, 0 monday
-day_of_opening = 6
+# Day of opening for picture. 6 for sunday, 5 for saturday, 4 friday, 3 thursday, 2 wednesday, 1 tuesday, 0 monday
+day_of_opening = 2
 # Hour of opening (24hs)
-hour_of_opening = 21
+hour_of_opening = 12
 # Set pinhole open time. 60 seconds = 1 minute
 PINHOLE_OPEN_TIME = 60
 
@@ -160,7 +160,7 @@ def setup_servo():
     servopin = Pin(17)
     servo = PWM(servopin, freq=50)
     # Close it
-    servo.duty(45)
+    servo.duty(35)
     # First border is duty=10
     # Center is duty=35 this is closing the hole
     # Center is duty=55 this is opening the hole
@@ -174,13 +174,13 @@ def pinhole(servo, action):
     if action == 'open':
         write_display('Opening')
         write_display('Pinhole', line=2, clean=False)
-        servo.duty(65)
+        servo.duty(55)
         write_display('Open', line=3, clean=False)
     elif action == 'close':
-        write_display('Opening')
+        write_display('Closing')
         write_display('Pinhole', line=2, clean=False)
-        servo.duty(45)
-        write_display('Open', line=3, clean=False)
+        servo.duty(35)
+        write_display('Closed', line=3, clean=False)
 
 def take_pic(servo):
     """
