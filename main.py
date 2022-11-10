@@ -26,7 +26,7 @@ import ntptime
 # Times configuration
 #
 # Day of opening for picture. 6 for sunday, 5 for saturday, 4 friday, 3 thursday, 2 wednesday, 1 tuesday, 0 monday
-day_of_opening = 2
+day_of_opening = 6
 # Hour of opening (24hs)
 hour_of_opening = 12
 # Set pinhole open time. 60 seconds = 1 minute
@@ -80,7 +80,7 @@ def setup_wifi():
     wifi.connect(WIFI_SSID, WIFI_PASSWORD)
 
     # wait until the device is connected to the WiFi network
-    MAX_ATTEMPTS = 20
+    MAX_ATTEMPTS = 200000
     attempt_count = 0
     while not wifi.isconnected() and attempt_count < MAX_ATTEMPTS:
         attempt_count += 1
@@ -136,6 +136,8 @@ def setup_mqtt():
     mqtt_feedname_hum = bytes('{:s}/feeds/{:s}'.format(ADAFRUIT_USERNAME, ADAFRUIT_IO_FEEDNAME1), 'utf-8')
     mqtt_feedname_pinhole = bytes('{:s}/feeds/{:s}'.format(ADAFRUIT_USERNAME, ADAFRUIT_IO_FEEDNAME2), 'utf-8')
     mqtt_feedname_waiting = bytes('{:s}/feeds/{:s}'.format(ADAFRUIT_USERNAME, ADAFRUIT_IO_FEEDNAME3), 'utf-8')
+    # Test the connection
+    client.publish(mqtt_feedname_hum, bytes(str(0), 'utf-8'), qos=0)
     return (client, mqtt_feedname_hum, mqtt_feedname_pinhole, mqtt_feedname_waiting)
 
 def setup_humidity_sensor():
@@ -174,7 +176,7 @@ def pinhole(servo, action):
     if action == 'open':
         write_display('Opening')
         write_display('Pinhole', line=2, clean=False)
-        servo.duty(55)
+        servo.duty(57)
         write_display('Open', line=3, clean=False)
     elif action == 'close':
         write_display('Closing')
@@ -232,7 +234,11 @@ def get_next_opening_time(actual_time_seconds):
     ## 6 - 5 = 1
     #  Open on Sunday, today is monday
     ## 6 - 0 = 6
+    #  Open on Tuesday, today is Wednesday
+    ## 2 - 3 = -1
     days_diff = day_of_opening - actual_time_weekday
+    # Mod 7 to go around the week
+    days_diff = days_diff%7
 
     # Calculation
     # Sunday 15hs = diff = 6-6-1=-1, end current day = 9
@@ -242,6 +248,18 @@ def get_next_opening_time(actual_time_seconds):
 
     # if days_diff is <= 0, total time is 12hs - current hour
     # if days_diff is > 0, total time is + 12hs - current hour
+
+    write_display('CTime:' + str(actual_time))
+    write_display('OTime:' + str(day_of_opening))
+    write_display('Days diff:' + str(days_diff), line=2, clean=False)
+    time.sleep(3)
+
+    write_display('Day ' + str(actual_time_weekday))
+    write_display('Hour ' + str(actual_time_hour), line=2, clean=False)
+    write_display('Diff ' + str(days_diff), line=3, clean=False)
+    write_display('HourO ' + str(hour_of_opening), line=4, clean=False)
+    time.sleep(3)
+
     if days_diff == 0:
         # Today is opening day!
         # Is it pre-opening time?
@@ -254,26 +272,25 @@ def get_next_opening_time(actual_time_seconds):
             # Substract the amount of hours that passed already in opening day
             total_hours = (7 * 24) - actual_time_hour + hour_of_opening
     elif days_diff > 0:
-        # We are in a day that is not opening day
-        # Wait until in opening day - 1 day so we have 24hs at least of checking every hour
-        total_hours = (days_diff * 24) - actual_time_hour + hour_of_opening
+        # We are before or after opening day
+        # Difference is days until opening day. Then add or substract the hour difference depeding if we are over or not
+        if actual_time_hour >= hour_of_opening:
+            tdiff = actual_time_hour - hour_of_opening
+            total_hours = (days_diff * 24) - tdiff
+        elif actual_time_hour < hour_of_opening:
+            tdiff = hour_of_opening - actual_time_hour
+            total_hours = (days_diff * 24) + tdiff
 
     # Convert total_hours in correct time in seconds 
     total_seconds = total_hours * 60 * 60
     total_time = time.localtime(actual_time_seconds + total_seconds)
 
-    #write_display('Current Time')
-    #write_display('Day ' + str(actual_time_weekday), line=2, clean=False)
-    #write_display('Hour ' + str(actual_time_hour), line=3, clean=False)
-    #write_display('Diff ' + str(days_diff), line=4, clean=False)
-    #write_display('Wait ' + str(total_time), line=5, clean=False)
-    #time.sleep(1)
     return total_time
 
 # Main code before the loop
 # The oled first
 write_display('Estenopeica')
-write_display('Abuelo 2.3', line=2, clean=False)
+write_display('Abuelo 2.4', line=2, clean=False)
 time.sleep(1)
 
 # Set up the wifi
@@ -299,7 +316,6 @@ time.sleep(1)
 servo = setup_servo()
 time.sleep(1)
 
-
 write_display('Going to loop')
 time.sleep(1)
 
@@ -318,6 +334,8 @@ while True:
 
         # - Calculate if we need to take a pic
         # Get current time
+        write_display('Setting up')
+        write_display('time', line=2, clean=False)
         actual_time_seconds = time.time() + UTC_OFFSET
         # positions: (year, month, mday, hour, minute, second, weekday, yearday)
         actual_time = time.localtime(actual_time_seconds)
@@ -334,7 +352,7 @@ while True:
         picture_time_weekday = picture_time[6] 
         # Get current hour 
         picture_time_hour = picture_time[3] 
-        time.sleep(5)
+        time.sleep(2)
 
         #
         # Decide if to take pic or not!
@@ -349,6 +367,7 @@ while True:
         if actual_time_weekday == picture_time_weekday and actual_time_hour < picture_time_hour:
             # sleep every 1 hour
             waiting_time = 3600
+            #waiting_time = 60
             write_display('Wait ~1 hour', line=1, clean=True)
             client.publish(mqtt_feedname_waiting, bytes(str(waiting_time), 'utf-8'), qos=0)
         # If it is not opening day, or it is opening day but after openinig time, or on opening time
@@ -358,6 +377,7 @@ while True:
             after_pic_actual_time_seconds = time.time() + UTC_OFFSET
             diff_since_pic = after_pic_actual_time_seconds - actual_time_seconds
             waiting_time = 86400 - diff_since_pic
+            #waiting_time = 60
             write_display('Wait ~1 day', line=1, clean=True)
             write_display(str(waiting_time) + ' s', line=2, clean=False)
             client.publish(mqtt_feedname_waiting, bytes(str(waiting_time), 'utf-8'), qos=0)
