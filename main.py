@@ -64,8 +64,8 @@ def setup_wifi():
     """
     write_display('Setting up wifi')
     # Setup the WiFi connection information
-    WIFI_SSID = 'Fibertel WiFi931 2.4GHz'
-    WIFI_PASSWORD = '0044384846'
+    WIFI_SSID = ''
+    WIFI_PASSWORD = ''
 
     # turn off the WiFi Access Point, just in case
     ap_if = network.WLAN(network.AP_IF)
