@@ -104,7 +104,7 @@ def setup_wifi():
     wifi.connect(WIFI_SSID, WIFI_PASSWORD)
 
     # wait until the device is connected to the WiFi network
-    MAX_ATTEMPTS = 200000
+    MAX_ATTEMPTS = 2000000
     attempt_count = 0
     while not wifi.isconnected() and attempt_count < MAX_ATTEMPTS:
         attempt_count += 1
