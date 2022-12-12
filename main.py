@@ -83,9 +83,13 @@ def setup_wifi():
     Setup the wifi
     """
     write_display('Setting up wifi')
+
+    # Read wifi credentials from file
+    cred_f = open('wifi-credentials.txt')
+
     # Setup the WiFi connection information
-    WIFI_SSID = ''
-    WIFI_PASSWORD = ''
+    WIFI_SSID = cred_f.readline().split('=')[1].replace("'", "").strip() 
+    WIFI_PASSWORD = cred_f.readline().split('=')[1].replace("'", "").strip() 
 
     # turn off the WiFi Access Point, just in case
     ap_if = network.WLAN(network.AP_IF)
