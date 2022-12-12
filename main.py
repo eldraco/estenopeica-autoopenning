@@ -400,7 +400,8 @@ while True:
             # This is important not to add 1 minute delays during the year
             after_pic_actual_time_seconds = time.time() + UTC_OFFSET
             diff_since_pic = after_pic_actual_time_seconds - actual_time_seconds
-            waiting_time = 86400 - diff_since_pic
+            LONG_WAIT = 3600
+            waiting_time = LONG_WAIT - diff_since_pic
             #waiting_time = 60
             write_display('Wait ~1 day', line=1, clean=True)
             write_display(str(waiting_time) + ' s', line=2, clean=False)
