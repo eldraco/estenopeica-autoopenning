@@ -1,4 +1,25 @@
-# Program to control a servo using the Heltec esp32 and sending telemetry to the Internet
+# Estenopeica-control
+# A program to take photos using a estenopeica camera (pinhole) by controling
+# a servo using the Heltec esp32 chip and sending telemetry to the Internet 
+# using mqtt. 
+# The system is designed to do an analema, so it takes a picture once a week
+# precisely in the same hour. It should be run for a year or more.
+
+# Copyright (C) 2022, Sebastian Garcia and Edgardo Garcia 
+
+# This program is free software; you can redistribute it and/or modify
+# it under the terms of the GNU General Public License as published by
+# the Free Software Foundation; either version 2 of the License, or
+# (at your option) any later version.
+
+# This program is distributed in the hope that it will be useful,
+# but WITHOUT ANY WARRANTY; without even the implied warranty of
+# MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+# GNU General Public License for more details.
+
+# You should have received a copy of the GNU General Public License along
+# with this program; if not, write to the Free Software Foundation, Inc.,
+# 51 Franklin Street, Fifth Floor, Boston, MA 02110-1301 USA.
 
 import network
 import time
