@@ -37,7 +37,7 @@ import ntptime
 
 
 # Configuration of the pins of the sensor. Looking at the heltec
-# it the display looking away from your eyes
+# if the display is looking away from your eyes
 # Pin GND: Is the first pin from the top right. The white cable without ribon
 # Pin 5v: Is the second pin from the top right. The while cable WITH ribon
 # Pin data: Is pin numbered 33 in the board. the eleventh pin from top right
