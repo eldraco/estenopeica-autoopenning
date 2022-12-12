@@ -391,7 +391,6 @@ while True:
         if actual_time_weekday == picture_time_weekday and actual_time_hour < picture_time_hour:
             # sleep every 1 hour
             waiting_time = 3600
-            #waiting_time = 60
             write_display('Wait ~1 hour', line=1, clean=True)
             client.publish(mqtt_feedname_waiting, bytes(str(waiting_time), 'utf-8'), qos=0)
         # If it is not opening day, or it is opening day but after openinig time, or on opening time
@@ -402,7 +401,6 @@ while True:
             diff_since_pic = after_pic_actual_time_seconds - actual_time_seconds
             LONG_WAIT = 3600
             waiting_time = LONG_WAIT - diff_since_pic
-            #waiting_time = 60
             write_display('Wait ~1 day', line=1, clean=True)
             write_display(str(waiting_time) + ' s', line=2, clean=False)
             client.publish(mqtt_feedname_waiting, bytes(str(waiting_time), 'utf-8'), qos=0)
