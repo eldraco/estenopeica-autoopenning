@@ -25,7 +25,6 @@ import network
 import time
 from time import sleep
 import os
-import gc
 import sys
 from machine import I2C
 from machine import Pin
