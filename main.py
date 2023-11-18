@@ -315,6 +315,7 @@ def get_next_opening_time(actual_time_seconds):
 # The oled first
 write_display('Estenopeica')
 write_display('Abuelo 2.5', line=2, clean=False)
+write_display('Open day:'+ str(day_of_opening), line=3, clean=False)
 time.sleep(1)
 
 # Set up the wifi
