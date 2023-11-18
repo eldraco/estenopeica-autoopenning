@@ -46,7 +46,7 @@ import ntptime
 # Times configuration
 #
 # Day of opening for picture. 6 for sunday, 5 for saturday, 4 friday, 3 thursday, 2 wednesday, 1 tuesday, 0 monday
-day_of_opening = 6
+day_of_opening = 2
 # Hour of opening (24hs)
 hour_of_opening = 12
 # Set pinhole open time. 60 seconds = 1 minute
