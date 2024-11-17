@@ -189,8 +189,9 @@ def setup_servo():
     servo.duty(35)
     write_display('Closing')
     write_display('Pinhole', line=2, clean=False)
-    servo.duty(35)
     write_display('Closed', line=3, clean=False)
+    ## Publish
+    client.publish(mqtt_feedname_pinhole, bytes(str('0'), 'utf-8'), qos=0)
     # First border is duty=10
     # Center is duty=35 this is closing the hole
     # Center is duty=55 this is opening the hole
