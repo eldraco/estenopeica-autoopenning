@@ -187,6 +187,10 @@ def setup_servo():
     servo = PWM(servopin, freq=50)
     # Close it
     servo.duty(35)
+    write_display('Closing')
+    write_display('Pinhole', line=2, clean=False)
+    servo.duty(35)
+    write_display('Closed', line=3, clean=False)
     # First border is duty=10
     # Center is duty=35 this is closing the hole
     # Center is duty=55 this is opening the hole
