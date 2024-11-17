@@ -45,12 +45,12 @@ import ntptime
 #
 # Times configuration
 #
-# Day of opening for picture. 6 for sunday, 5 for saturday, 4 friday, 3 thursday, 2 wednesday, 1 tuesday, 0 monday
-day_of_opening = 2
+# Day of opening for picture. 6 for sunday, 5 for saturday, 4 friday, 3 thursday, 2 wednesday, 1 tuesday, 0 monday, -10 for every day
+day_of_opening = -10
 # Hour of opening (24hs)
 hour_of_opening = 12
 # Set pinhole open time. 60 seconds = 1 minute
-PINHOLE_OPEN_TIME = 60
+PINHOLE_OPEN_TIME = 120
 
 # ---
 ## Setup the display
@@ -241,12 +241,14 @@ def get_next_opening_time(actual_time_seconds):
     Given a certain time, get how much to wait until next opening dy at opening time
     """
 
+    # Actual time is a datetime object. When print it puts (2024, 11, 17, 18, 53, 16, 6, 322)
     actual_time = time.localtime(actual_time_seconds)
     # Get current day of week
     actual_time_weekday = actual_time[6]
     # Get current hour. 0 should be the first hour and 23 the last one
     actual_time_hour = actual_time[3] 
     
+    # Day of opening for picture. 6 for sunday, 5 for saturday, 4 friday, 3 thursday, 2 wednesday, 1 tuesday, 0 monday, -1 for every day
     # Find how far away is next Sunday. Sunday is 6 in weekday numbers (Monday = 0)
     # You decrease 1 day more because we separatedly compute the hours of the day you are
     # Examples
@@ -256,10 +258,12 @@ def get_next_opening_time(actual_time_seconds):
     ## 6 - 6 = 0
     #  Open On Sunday, today is Saturday
     ## 6 - 5 = 1
-    #  Open on Sunday, today is monday
+    #  Open on Sunday, today is Monday
     ## 6 - 0 = 6
     #  Open on Tuesday, today is Wednesday
     ## 2 - 3 = -1
+    #  Open on Monday, today is Sunday
+    ## 0 - 6 = -6
     days_diff = day_of_opening - actual_time_weekday
     # Mod 7 to go around the week
     days_diff = days_diff%7
@@ -273,9 +277,9 @@ def get_next_opening_time(actual_time_seconds):
     # if days_diff is <= 0, total time is 12hs - current hour
     # if days_diff is > 0, total time is + 12hs - current hour
 
-    write_display('CTime:' + str(actual_time))
-    write_display('OTime:' + str(day_of_opening))
-    write_display('Days diff:' + str(days_diff), line=2, clean=False)
+    write_display('Cur Time:' + str(actual_time))
+    write_display('Ope Day:' + str(day_of_opening), line=2, clean=False)
+    write_display('Days diff:' + str(days_diff), line=3, clean=False)
     time.sleep(3)
 
     write_display('Day ' + str(actual_time_weekday))
@@ -314,7 +318,7 @@ def get_next_opening_time(actual_time_seconds):
 # Main code before the loop
 # The oled first
 write_display('Estenopeica')
-write_display('Abuelo 2.5', line=2, clean=False)
+write_display('Abuelo 2.6', line=2, clean=False)
 write_display('Open day:'+ str(day_of_opening), line=3, clean=False)
 time.sleep(1)
 
@@ -348,9 +352,6 @@ time.sleep(1)
 while True:
     try:
 
-        # As backup to cover from errors, sleep every 1hs
-        waiting_time = 3600
-
         # Read humidity
         write_display('Reading Humidity')
         hum_value = hum.read()
@@ -370,7 +371,7 @@ while True:
         actual_time_hour = actual_time[3] 
         # Get when it is going to be the next picture time. 
         picture_time = get_next_opening_time(actual_time_seconds)
-        write_display('Wait for pic')
+        write_display('Next open time')
         write_display(str(picture_time), line=2, clean=False)
         write_display('hs', line=3, clean=False)
         # Get current day of week
@@ -379,35 +380,55 @@ while True:
         picture_time_hour = picture_time[3] 
         time.sleep(2)
 
+        # Small hack. In case the photo day is 'every day', then just say that today is the day of photo, whatever the day is
+        if day_of_opening == -10:
+            picture_time_weekday = actual_time_weekday
+            # Delete this next line after debug
+            # picture_time_hour = actual_time_hour
+
         #
-        # Decide if to take pic or not!
+        # Decide if to take photo or not!
         #
 
-        # If it is the day and hour of picture. Hour is without minutes.
-        if actual_time_weekday == picture_time_weekday and  actual_time_hour == picture_time_hour:
-            write_display('Take Pic!')
-            # Take pic
+        # If it is the day and hour of photo. Hour is without minutes.
+        if actual_time_weekday == picture_time_weekday and actual_time_hour == picture_time_hour:
+            # Open the hole and Take photo
+            write_display('Take Photo!')
             take_pic(servo)
+            # If the photo was taken, wait until next check
+            waiting_time = 3600
+            waiting_time_in_hours = waiting_time / 3600
+            msg1 = 'Next check:'
+            msg2 = '{:.3}hs'.format(waiting_time_in_hours)
+            write_display(msg1, line=1, clean=True)
+            write_display(msg2, line=2, clean=False)
         # If it is opening day and before picture time
         if actual_time_weekday == picture_time_weekday and actual_time_hour < picture_time_hour:
             # sleep every 1 hour
             waiting_time = 3600
-            write_display('Wait ~1 hour', line=1, clean=True)
+            waiting_time_in_hours = waiting_time / 3600
+            msg1 = 'Next check:'
+            msg2 = '{:.3}hs'.format(waiting_time_in_hours)
+            write_display(msg1, line=1, clean=True)
+            write_display(msg2, line=2, clean=False)
             client.publish(mqtt_feedname_waiting, bytes(str(waiting_time), 'utf-8'), qos=0)
-        # If it is not opening day, or it is opening day but after openinig time, or on opening time
+        # If it is not opening day, or... if it is 'opening day' AND after/equal opening time
         elif (actual_time_weekday != picture_time_weekday) or (actual_time_weekday == picture_time_weekday and actual_time_hour >= picture_time_hour):
-            # Sleep for 1 day minus the time we are already away from picture time
+            # Sleep for x time minus the time we are already away from picture time
             # This is important not to add 1 minute delays during the year
             after_pic_actual_time_seconds = time.time() + UTC_OFFSET
             diff_since_pic = after_pic_actual_time_seconds - actual_time_seconds
+            # LONG_WAIT was meant for the case that in other days, you may want to check every 1 day and not every 1hs. How is 1hs
             LONG_WAIT = 3600
             waiting_time = LONG_WAIT - diff_since_pic
-            write_display('Wait ~1 day', line=1, clean=True)
-            write_display(str(waiting_time) + ' s', line=2, clean=False)
+            waiting_time_in_hours = waiting_time / 3600
+            msg1 = 'Next check:'
+            msg2 = '{:.3}hs'.format(waiting_time_in_hours)
+            write_display(msg1, line=1, clean=True)
+            write_display(msg2, line=2, clean=False)
+            #write_display(str(waiting_time) + ' s', line=2, clean=False)
             client.publish(mqtt_feedname_waiting, bytes(str(waiting_time), 'utf-8'), qos=0)
-            # This is the most important sleep. We should try to wake up at 12 next day
 
-        write_display('Waiting ' + str(waiting_time), line=3, clean=False)
         time.sleep(waiting_time)
     except KeyboardInterrupt:
         print('Ctrl-C pressed...exiting')
